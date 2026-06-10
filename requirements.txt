@@ -1,9 +1,11 @@
 tensorflow
 keras
+Keras-Preprocessing
 pandas
 numpy
 tqdm
 opencv-contrib-python
 scikit-learn
+matplotlib
 keras2onnx
 onnxruntime
