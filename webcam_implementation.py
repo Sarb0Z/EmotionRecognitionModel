@@ -3,13 +3,13 @@ from keras.models import model_from_json
 import numpy as np
 
 # Load the pre-trained model architecture from JSON file
-json_file = open("facialemotionmodel.json", "r")
+json_file = open("emotiondetector.json", "r")
 model_json = json_file.read()
 json_file.close()
 model = model_from_json(model_json)
 
 # Load the pre-trained model weights
-model.load_weights("facialemotionmodel.h5")
+model.load_weights("emotiondetector.h5")
 
 # Load the Haar cascade classifier for face detection
 haar_file = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
