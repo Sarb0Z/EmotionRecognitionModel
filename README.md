@@ -1,43 +1,92 @@
 # Facial Emotion Recognition
 
-Final-year project. Trains a CNN on grayscale face images to classify seven emotions, then runs inference in real time through a webcam feed using OpenCV.
+A convolutional neural network that classifies facial expressions into seven emotions, with real-time webcam inference via OpenCV. Final-year project (FAST NUCES, 2024).
 
-## What it does
+The same model is exported to ONNX and used for on-device inference inside a Unity game ([Sarb0Z/FYP](https://github.com/Sarb0Z/FYP)).
 
-`model_training.ipynb` loads the FER2013 dataset from a local `images/` directory, extracts 48×48 grayscale features, and trains a Sequential CNN with four convolutional blocks (128→256→512→512 filters), dropout regularisation, and a 7-class softmax output. The trained model is saved as `emotiondetector.json` / `emotiondetector.h5` and exported to ONNX (`sequential.onnx`). `webcam_implementation.py` loads the weights and runs a live loop: Haar cascade face detection → crop → resize → predict → overlay label.
+## Demo
 
-## Architecture
+`webcam_implementation.py` runs a live loop: Haar-cascade face detection → crop → 48×48 grayscale → CNN prediction → on-frame emotion label.
 
-| Component | Detail |
-|-----------|--------|
-| Input | 48×48 grayscale |
-| Conv blocks | 4 × (Conv2D + MaxPool + Dropout 0.4) |
-| FC layers | Dense 512 → Dense 256 → Dense 7 (softmax) |
-| Loss | Categorical cross-entropy |
-| Optimiser | Adam, 100 epochs, batch 128 |
+<!-- Add a short screen-capture GIF once recorded: ![demo](results/demo.gif) -->
 
 ## Dataset
 
-FER2013 (images not committed — add to `images/train/` and `images/test/` with one subdirectory per emotion label). Standard FER2013 training split is approximately 28,709 images across 7 classes.
+[FER2013](https://www.kaggle.com/datasets/msambare/fer2013) — 48×48 grayscale faces, 7 classes (angry, disgust, fear, happy, neutral, sad, surprise), ~28,709 train / ~7,178 test. The dataset is **not committed** (see `.gitignore`); place it under `images/train/<label>/` and `images/test/<label>/`.
 
-## Model artifacts
+## Model architecture
 
-Trained weights are committed: `emotiondetector.h5` (~48 MB) and `sequential.onnx` (~16 MB). The notebook's training cells were cleared before commit, so epoch-by-epoch accuracy is not recorded in the notebook.
+Sequential CNN, 48×48×1 input:
 
-## Tech stack
+| Stage | Layers |
+|-------|--------|
+| Conv blocks | Conv2D(128) → Conv2D(256) → Conv2D(512) → Conv2D(512), ReLU, with MaxPooling2D + Dropout(0.4) after each |
+| Head | Flatten → Dense(512, ReLU) → Dropout → Dense(256, ReLU) → Dropout → Dense(7, softmax) |
 
-- Python, TensorFlow/Keras, OpenCV, ONNX
-- `requirements.txt` lists all dependencies
+Defined and trained in `model_training.ipynb`.
 
-## How to run
+## Training setup
+
+| Setting | Value |
+|---------|-------|
+| Optimizer | Adam |
+| Loss | Categorical cross-entropy |
+| Epochs | 100 |
+| Batch size | 128 |
+| Input | 48×48 grayscale, pixels scaled to [0, 1] |
+
+Trained artifacts are committed: `emotiondetector.json` (architecture), `emotiondetector.h5` (weights, ~48 MB), and `sequential.onnx` (~16 MB) for ONNX runtimes.
+
+## Results
+
+Evaluate the committed model on the FER2013 test split — no retraining needed:
 
 ```bash
 pip install -r requirements.txt
-# Place FER2013 images under images/train/<label>/ and images/test/<label>/
-jupyter notebook model_training.ipynb   # to retrain
-python webcam_implementation.py         # to run live inference
+# place FER2013 test images under images/test/<label>/
+python evaluate.py
 ```
+
+`evaluate.py` prints a per-class classification report and writes `results/classification_report.txt` and `results/confusion_matrix.png`. Commit those and record the headline numbers here:
+
+| Metric | Value |
+|--------|-------|
+| Test accuracy | _run `evaluate.py`_ |
+| Macro F1 | _run `evaluate.py`_ |
+
+<!-- After committing results/confusion_matrix.png, uncomment:
+![Confusion matrix](results/confusion_matrix.png)
+-->
+
+> FER2013 is a hard, class-imbalanced benchmark — `disgust` has ~550 examples vs. ~7k for `happy`, and published baselines sit around 65–72% test accuracy. Calibrate against that, not near-100%.
+
+## Repository structure
+
+```
+model_training.ipynb      # data loading, CNN definition, training
+evaluate.py               # evaluate committed model -> report + confusion matrix
+webcam_implementation.py  # real-time webcam inference
+emotiondetector.json/.h5  # trained architecture + weights
+sequential.onnx           # ONNX export for on-device / cross-runtime inference
+requirements.txt
+```
+
+## Reproduce
+
+```bash
+pip install -r requirements.txt
+# 1. Get FER2013, arrange as images/{train,test}/<label>/
+# 2. (optional) retrain:  jupyter notebook model_training.ipynb
+# 3. evaluate:            python evaluate.py
+# 4. live demo:           python webcam_implementation.py
+```
+
+## Limitations
+
+- FER2013 has noisy labels and severe class imbalance; `disgust` and `fear` are the weakest classes for most models.
+- 48×48 grayscale input discards color and fine detail — this is a baseline, not production-grade.
+- Webcam inference uses a Haar cascade for detection: fast, but less robust than a modern detector under pose/lighting variation.
 
 ## Status
 
-Final-year project (2024). Real-time inference path is complete. Retraining requires the FER2013 image dataset (not included in the repo per `.gitignore`).
+Final-year project (2024). Training notebook, ONNX export, and real-time inference path are complete. Training-cell outputs were cleared before the original commit; `evaluate.py` reproduces metrics from the committed weights.
